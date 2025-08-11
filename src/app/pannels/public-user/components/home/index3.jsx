@@ -30,7 +30,7 @@ function Home3Page() {
                 <div className="twm-home3-inner-section" >
                     <div className="twm-bnr-mid-section">
                         <div className="twm-bnr-title-large"> Edunomad Connect</div>
-                        <div className="twm-bnr-title-light">brings education together</div>
+                        <div className="twm-bnr-title-light">Brings Education Together</div>
                         <div className="twm-bnr-discription">Where Teachers, Schools, and Parents Find Each Other.</div>
                         <div className="twm-bnr-search-bar">
                             <form>
@@ -117,9 +117,7 @@ function Home3Page() {
                                         </div>
                                     </div>
                                     <h4 className="twm-title"> Post or Search</h4>
-                                    <p>Institutes & parents: Post your teaching/tutoring needs.
-
-Teachers: Browse jobs or tutoring opportunities based on your skills and location.</p>
+                                    <p>Institutes and parents can post teaching needs, while teachers browse jobs and tutoring opportunities by skill and location.</p>
                                 </div>
                             </div>
                             <div className="col-xl-4 col-lg-6 col-md-6">
@@ -130,7 +128,7 @@ Teachers: Browse jobs or tutoring opportunities based on your skills and locatio
                                             <span><JobZImage src="images/work-process/icon3.png" alt="icon1" /></span>
                                         </div>
                                     </div>
-                                    <h4 className="twm-title">Connect & Collaborat</h4>
+                                    <h4 className="twm-title">Connect & Collaborate</h4>
                                     <p>Review matches, connect with the right people, and take the next step, whether it’s hiring, applying, or starting a class.</p>
                                 </div>
                             </div>
