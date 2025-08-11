@@ -1,869 +1,751 @@
-import { useState } from "react";
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  FileText, 
-  Calendar, 
+/* eslint-disable react/prop-types */
+import { useState, useMemo } from "react";
+import {
+  User,
+  Mail,
+  Phone,
+  FileText,
+  Calendar,
   Download,
   Eye,
   X,
   MapPin,
   GraduationCap,
-  Building
+  Building,
+  Search,
+  Filter,
+  Save,
 } from "lucide-react";
 
-const InstAppViewer = ({ jobTitle, jobId, isOpen, onClose }) => {
-  const [selectedApplication, setSelectedApplication] = useState(null);
-  const [reviewMode, setReviewMode] = useState(null);
-  const [contactMode, setContactMode] = useState(null);
-  const [applications, setApplications] = useState([
+/* -------------------------------------------------------------------------- */
+/*                               CSS Styles                                   */
+/* -------------------------------------------------------------------------- */
+
+const styles = `
+  .inst-app-viewer {
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+
+  /* Status Pill */
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 9999px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .status-pill.pending {
+    background-color: #fef9c3;
+    color: #854d0e;
+  }
+
+  .status-pill.reviewed {
+    background-color: #dbeafe;
+    color: #1e40af;
+  }
+
+  .status-pill.shortlisted {
+    background-color: #d1fae5;
+    color: #065f46;
+  }
+
+  .status-pill.rejected {
+    background-color: #ffe4e6;
+    color: #9f1239;
+  }
+
+  /* Icon Button */
+  .icon-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border-radius: 0.375rem;
+    border: 1px solid #cbd5e1;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    background-color: white;
+    cursor: pointer;
+  }
+
+  .icon-button:hover {
+    background-color: #f8fafc;
+  }
+
+  .icon-button:disabled {
+    opacity: 0.5;
+  }
+
+  .icon-button .icon {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 1rem;
+  }
+
+  .modal-content {
+    max-height: 85vh;
+    width: 100%;
+    max-width: 56rem;
+    overflow-y: auto;
+    border-radius: 0.5rem;
+    background-color: white;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+
+  /* Header */
+  .modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 1rem 1.5rem;
+  }
+
+  .modal-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #0f172a;
+  }
+
+  .modal-subtitle {
+    font-size: 0.875rem;
+    color: #64748b;
+  }
+
+  /* Toolbar */
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem;
+  }
+
+  .search-container {
+    position: relative;
+    flex: 1;
+    max-width: 20rem;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 0.625rem;
+    width: 1rem;
+    height: 1rem;
+    color: #94a3b8;
+  }
+
+  .search-input {
+    width: 100%;
+    border-radius: 0.375rem;
+    border: 1px solid #cbd5e1;
+    background-color: #f8fafc;
+    padding: 0.5rem 0.75rem 0.5rem 2.25rem;
+    font-size: 0.875rem;
+  }
+
+  .search-input:focus {
+    border-color: #3b82f6;
+    background-color: white;
+    outline: none;
+  }
+
+  .search-input::placeholder {
+    color: #94a3b8;
+  }
+
+  .filter-select {
+    border-radius: 0.375rem;
+    border: 1px solid #cbd5e1;
+    background-color: white;
+    padding: 0.5rem 0.5rem 0.5rem 0.5rem;
+    font-size: 0.875rem;
+    appearance: none;
+    padding-right: 1.75rem;
+  }
+
+  /* Applications Grid */
+  .applications-grid {
+    display: grid;
+    gap: 1rem;
+    padding: 0 1.5rem 2.5rem;
+  }
+
+  @media (min-width: 640px) {
+    .applications-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .applications-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  .application-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border-radius: 0.5rem;
+    border: 1px solid #e2e8f0;
+    background-color: white;
+    padding: 1rem;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    transition: box-shadow 0.2s;
+  }
+
+  .application-card:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+
+  .card-head {
+    margin-bottom: 0.5rem;
+  }
+
+  .candidate-name {
+    font-size: 1.125rem;
+    font-weight: 500;
+    color: #0f172a;
+    margin-bottom: 0.5rem;
+  }
+
+  .candidate-details {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.875rem;
+    color: #475569;
+    margin-bottom: 0.25rem;
+  }
+
+  .card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 1rem;
+  }
+
+  .card-actions {
+    display: flex;
+    gap: 0.25rem;
+  }
+
+  /* Empty State */
+  .empty-state {
+    display: grid;
+    place-items: center;
+    gap: 1rem;
+    padding: 6rem 0;
+    text-align: center;
+    color: #64748b;
+  }
+
+  .empty-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    color: #f59e0b;
+  }
+
+  /* Resume Modal Sections */
+  .modal-section {
+    display: grid;
+    gap: 0.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid #e2e8f0;
+    padding: 1rem;
+    font-size: 0.875rem;
+  }
+
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #075985;
+    margin-bottom: 0.5rem;
+  }
+
+  .section-content {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  /* Contact Modal */
+  .contact-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .email-icon {
+    color: #0284c7;
+  }
+
+  .phone-icon {
+    color: #059669;
+  }
+
+  .address-icon {
+    color: #d97706;
+  }
+
+  /* Action Buttons */
+  .action-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+
+  .email-button {
+    background: linear-gradient(to right, #0ea5e9, #0284c7);
+    color: white;
+  }
+
+  .email-button:hover {
+    opacity: 0.9;
+  }
+
+  .call-button {
+    border-color: #34d399;
+    color: #059669;
+  }
+
+  .call-button:hover {
+    background-color: #ecfdf5;
+  }
+
+  .cancel-button {
+    border-color: #fda4af;
+    color: #be123c;
+  }
+
+  .cancel-button:hover {
+    background-color: #fff1f2;
+  }
+
+  /* Review Modal */
+  .notes-textarea {
+    width: 100;
+    height: 6rem;
+    border-radius: 0.375rem;
+    border: 1px solid #cbd5e1;
+    padding: 0.5rem;
+    font-size: 0.875rem;
+  }
+
+  .save-button {
+    background: linear-gradient(to right, #0ea5e9, #0284c7);
+    color: white;
+  }
+
+  .save-button:hover {
+    opacity: 0.9;
+  }
+`;
+
+/* -------------------------------------------------------------------------- */
+/*                               Helper Pieces                                */
+/* -------------------------------------------------------------------------- */
+
+const StatusPill = ({ status }) => {
+  return (
+    <span className={`status-pill ${status}`}>
+      {status[0].toUpperCase() + status.slice(1)}
+    </span>
+  );
+};
+
+const IconButton = ({ icon: Icon, children, className = "", ...rest }) => (
+  <button className={`icon-button ${className}`} {...rest}>
+    <Icon className="icon" />
+    {children}
+  </button>
+);
+
+/* -------------------------------------------------------------------------- */
+/*                              Main Component                                */
+/* -------------------------------------------------------------------------- */
+
+const InstAppViewer = ({ jobTitle, isOpen, onClose }) => {
+  /* ------------------------------- State --------------------------------- */
+  const [selectedApp, setSelectedApp] = useState(null);
+  const [contactApp, setContactApp] = useState(null);
+  const [reviewApp, setReviewApp] = useState(null);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [apps, setApps] = useState([
     {
       id: "1",
       candidateName: "Dr. Sarah Johnson",
       email: "sarah.johnson@email.com",
       phone: "+1 (555) 123-4567",
       address: "123 Academic Street, University City, CA 90210",
-      education: "PhD in Computer Science from Stanford University (2019)",
-      experience: "5 years as Research Scientist at Google AI, Published 15+ papers in top-tier conferences",
+      education: "PhD in Computer Science — Stanford (2019)",
+      experience:
+        "5 yrs Research Scientist @ Google AI · 15+ papers in top-tier conferences",
       resumeUrl: "#",
-      coverLetter: "I am excited to apply for the Assistant Professor position. With my PhD in Computer Science and 5 years of research experience in machine learning, I believe I would be a valuable addition to your department.",
+      coverLetter:
+        "I am excited to apply for the Assistant Professor position. …",
       appliedDate: "2024-02-15",
-      status: "pending"
+      status: "pending",
     },
     {
       id: "2",
       candidateName: "Dr. Michael Chen",
       email: "m.chen@university.edu",
       phone: "+1 (555) 987-6543",
-      address: "456 Research Boulevard, Tech Valley, NY 12180",
-      education: "PhD in Artificial Intelligence from MIT (2020)",
-      experience: "4 years as Postdoctoral Researcher at Carnegie Mellon University",
+      address: "456 Research Blvd, Tech Valley, NY 12180",
+      education: "PhD in Artificial Intelligence — MIT (2020)",
+      experience:
+        "4 yrs Post-doc Researcher @ Carnegie Mellon University, 6 papers in NeurIPS/ICML",
       resumeUrl: "#",
-      coverLetter: "As a recent PhD graduate with expertise in artificial intelligence and published research in top-tier conferences, I am eager to contribute to your computer science program.",
+      coverLetter:
+        "As a recent PhD graduate with expertise in AI and published research …",
       appliedDate: "2024-02-12",
-      status: "reviewed"
+      status: "reviewed",
     },
     {
       id: "3",
       candidateName: "Dr. Emily Rodriguez",
       email: "emily.rodriguez@tech.com",
       phone: "+1 (555) 456-7890",
-      address: "789 Innovation Drive, Silicon Valley, CA 94105",
-      education: "PhD in Machine Learning from UC Berkeley (2018)",
-      experience: "6 years as Senior Engineer at Google, 2 years as Adjunct Professor at UC Berkeley",
+      address: "789 Innovation Dr, Silicon Valley, CA 94105",
+      education: "PhD in Machine Learning — UC Berkeley (2018)",
+      experience:
+        "6 yrs Senior Engineer @ Google · 2 yrs Adjunct Prof @ UC Berkeley",
       resumeUrl: "#",
-      coverLetter: "With my industry experience at Google and academic background, I bring both practical and theoretical knowledge to advance your curriculum and research initiatives.",
+      coverLetter:
+        "With my industry experience at Google and academic background …",
       appliedDate: "2024-02-10",
-      status: "shortlisted"
-    }
+      status: "shortlisted",
+    },
   ]);
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "pending": return "status-pending";
-      case "reviewed": return "status-reviewed";
-      case "shortlisted": return "status-shortlisted";
-      case "rejected": return "status-rejected";
-      default: return "status-default";
-    }
-  };
-
-  const formatStatus = (status) => {
-    return status.charAt(0).toUpperCase() + status.slice(1);
-  };
-
-  const updateApplicationStatus = (applicationId, newStatus) => {
-    setApplications(prev => 
-      prev.map(app => 
-        app.id === applicationId ? { ...app, status: newStatus } : app
+  /* -------------------------- Derived Collections ------------------------ */
+  const filteredApps = useMemo(() => {
+    return apps
+      .filter(
+        (a) =>
+          a.candidateName.toLowerCase().includes(search.toLowerCase()) ||
+          a.email.toLowerCase().includes(search.toLowerCase())
       )
+      .filter((a) => (statusFilter === "all" ? true : a.status === statusFilter))
+      .sort(
+        (a, b) => new Date(b.appliedDate).valueOf() - new Date(a.appliedDate).valueOf()
+      );
+  }, [apps, search, statusFilter]);
+
+  /* ----------------------------- Handlers -------------------------------- */
+  const updateStatus = (id, newStatus) =>
+    setApps((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, status: newStatus } : a))
     );
-  };
 
+  /* ---------------------------- UI Helpers ------------------------------- */
+  const Modal = ({ children }) => (
+    <div className="modal-overlay">
+      <div className="modal-content">{children}</div>
+    </div>
+  );
+
+  /* ---------------------------------------------------------------------- */
   return (
-    <div className="application-viewer">
-      {/* Main Dialog */}
-      {isOpen && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h2 className="modal-title">Applications for: {jobTitle}</h2>
-              {/* <p className="modal-description">Review and manage candidate applications for this position.</p> */}
-              <button className="close-button" onClick={onClose}>
-                <X className="icon" />
-              </button>
+    isOpen && (
+      <>
+        <style>{styles}</style>
+        <Modal>
+          {/* --------------------------- Header -------------------------- */}
+          <header className="modal-header">
+            <div>
+              <h2 className="modal-title">Applications – {jobTitle}</h2>
+              <p className="modal-subtitle">
+                {apps.length} applicant{apps.length !== 1 && "s"} so far
+              </p>
             </div>
+            <IconButton icon={X} onClick={onClose} aria-label="Close" />
+          </header>
 
-            <div className="application-list-container">
-              <div className="application-list-header">
-                <p className="application-count">
-                  {applications.length} application{applications.length !== 1 ? 's' : ''} received
-                </p>
-                <button className="export-button">
-                  <Download className="icon" />
-                  Export All
-                </button>
+          {/* ------------------------ Toolbar --------------------------- */}
+          <div className="toolbar">
+            <label className="search-container">
+              <Search className="search-icon" />
+              <input
+                className="search-input"
+                placeholder="Search by name or email…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </label>
+
+            <select
+              className="filter-select"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="all">All statuses</option>
+              <option value="pending">Pending</option>
+              <option value="reviewed">Reviewed</option>
+              <option value="shortlisted">Shortlisted</option>
+              <option value="rejected">Rejected</option>
+            </select>
+
+            <IconButton icon={Download} onClick={() => alert("Export coming soon…")}>
+              Export CSV
+            </IconButton>
+          </div>
+
+          {/* -------------------- Applications Grid --------------------- */}
+          {filteredApps.length === 0 ? (
+            <div className="empty-state">
+              <User className="empty-icon" />
+              <p>No applications match your criteria.</p>
+            </div>
+          ) : (
+            <ul className="applications-grid">
+              {filteredApps.map((app) => (
+                <li key={app.id} className="application-card">
+                  {/* -------- Card Head -------- */}
+                  <div className="card-head">
+                    <h3 className="candidate-name">{app.candidateName}</h3>
+
+                    <div className="space-y-1">
+                      <p className="candidate-details">
+                        <Mail className="icon" /> {app.email}
+                      </p>
+                      <p className="candidate-details">
+                        <Phone className="icon" /> {app.phone}
+                      </p>
+                      <p className="candidate-details">
+                        <Calendar className="icon" />{" "}
+                        {new Date(app.appliedDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* -------- Card Footer -------- */}
+                  <div className="card-footer">
+                    <StatusPill status={app.status} />
+
+                    <div className="card-actions">
+                      <IconButton
+                        icon={FileText}
+                        onClick={() => setSelectedApp(app)}
+                      >
+                        Resume
+                      </IconButton>
+                      <IconButton
+                        icon={Mail}
+                        onClick={() => setContactApp(app)}
+                      />
+                      <IconButton
+                        icon={Eye}
+                        onClick={() => setReviewApp(app)}
+                      />
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* ---------------------------- Resume Modal --------------------------- */}
+          {selectedApp && (
+            <Modal>
+              <header className="modal-header">
+                <h2 className="modal-title">{selectedApp.candidateName}</h2>
+                <IconButton
+                  icon={X}
+                  onClick={() => setSelectedApp(null)}
+                  aria-label="Close resume"
+                />
+              </header>
+
+              <div className="space-y-6 px-6 py-6 text-sm">
+                {/* Personal */}
+                <section className="modal-section">
+                  <h3 className="section-title">
+                    <User className="icon" /> Personal
+                  </h3>
+                  <p className="section-content">
+                    <Mail className="icon" /> {selectedApp.email}
+                  </p>
+                  <p className="section-content">
+                    <Phone className="icon" /> {selectedApp.phone}
+                  </p>
+                  <p className="section-content">
+                    <MapPin className="icon" /> {selectedApp.address}
+                  </p>
+                </section>
+
+                {/* Education */}
+                <section className="modal-section">
+                  <h3 className="section-title">
+                    <GraduationCap className="icon" /> Education
+                  </h3>
+                  <p>{selectedApp.education}</p>
+                </section>
+
+                {/* Experience */}
+                <section className="modal-section">
+                  <h3 className="section-title">
+                    <Building className="icon" /> Experience
+                  </h3>
+                  <p>{selectedApp.experience}</p>
+                </section>
+
+                <div className="action-buttons">
+                  <IconButton
+                    icon={Download}
+                    onClick={() => alert("PDF download coming soon…")}
+                  >
+                    PDF
+                  </IconButton>
+                  <IconButton
+                    icon={X}
+                    onClick={() => setSelectedApp(null)}
+                    className="cancel-button"
+                  >
+                    Close
+                  </IconButton>
+                </div>
               </div>
+            </Modal>
+          )}
 
-              <div className="divider"></div>
-
-              {applications.length === 0 ? (
-                <div className="empty-state">
-                  <User className="empty-icon" />
-                  <h3 className="empty-title">No applications yet</h3>
-                  <p className="empty-message">
-                    Applications will appear here once candidates start applying.
+          {/* ---------------------------- Contact Modal -------------------------- */}
+          {contactApp && (
+            <Modal>
+              <header className="modal-header">
+                <h2 className="modal-title">Contact {contactApp.candidateName}</h2>
+                <IconButton
+                  icon={X}
+                  onClick={() => setContactApp(null)}
+                  aria-label="Close contact"
+                />
+              </header>
+              <div className="space-y-4 px-6 py-6 text-sm">
+                <div className="space-y-1">
+                  <p className="contact-info">
+                    <Mail className="icon email-icon" /> {contactApp.email}
+                  </p>
+                  <p className="contact-info">
+                    <Phone className="icon phone-icon" /> {contactApp.phone}
+                  </p>
+                  <p className="contact-info">
+                    <MapPin className="icon address-icon" /> {contactApp.address}
                   </p>
                 </div>
-              ) : (
-                <div className="applications-grid">
-                  {applications.map((application) => (
-                    <div key={application.id} className="application-card">
-                      <div className="application-header">
-                        <div className="application-info">
-                          <h3 className="candidate-name">{application.candidateName}</h3>
-                          <div className="contact-info">
-                            <div className="contact-item">
-                              <Mail className="icon" />
-                              <span>{application.email}</span>
-                            </div>
-                            <div className="contact-item">
-                              <Phone className="icon" />
-                              <span>{application.phone}</span>
-                            </div>
-                            <div className="contact-item">
-                              <Calendar className="icon" />
-                              <span>Applied: {new Date(application.appliedDate).toLocaleDateString()}</span>
-                            </div>
-                          </div>
-                        </div>
-                        <span className={`status-badge ${getStatusColor(application.status)}`}>
-                          {formatStatus(application.status)}
-                        </span>
-                      </div>
-                      <div className="application-content">
-                        <div className="cover-letter-section">
-                          <h4 className="section-title">Cover Letter</h4>
-                          <p className="cover-letter-text">
-                            {application.coverLetter}
-                          </p>
-                        </div>
-                        
-                        <div className="application-actions">
-                          <button 
-                            className="view-resume-button"
-                            onClick={() => setSelectedApplication(application)}
-                          >
-                            <FileText className="icon" />
-                            View Resume
-                          </button>
-                          <div className="action-buttons">
-                            <button 
-                              className="contact-button"
-                              onClick={() => setContactMode(application)}
-                            >
-                              <Mail className="icon" />
-                              Contact
-                            </button>
-                            <button 
-                              className="review-button"
-                              onClick={() => setReviewMode(application)}
-                            >
-                              <Eye className="icon" />
-                              Review
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Resume Viewer Dialog */}
-      {selectedApplication && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h2 className="modal-title">Resume: {selectedApplication.candidateName}</h2>
-              <p className="modal-description">Complete resume and qualifications</p>
-              <button className="close-button" onClick={() => setSelectedApplication(null)}>
-                <X className="icon" />
-              </button>
-            </div>
-            
-            <div className="resume-content">
-              <div className="info-card">
-                <div className="card-header">
-                  <h3 className="card-title">
-                    <User className="icon" />
-                    Personal Information
-                  </h3>
-                </div>
-                <div className="card-content">
-                  <div className="info-item">
-                    <Mail className="icon" />
-                    <span>{selectedApplication.email}</span>
-                  </div>
-                  <div className="info-item">
-                    <Phone className="icon" />
-                    <span>{selectedApplication.phone}</span>
-                  </div>
-                  <div className="info-item">
-                    <MapPin className="icon" />
-                    <span>{selectedApplication.address}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="info-card">
-                <div className="card-header">
-                  <h3 className="card-title">
-                    <GraduationCap className="icon" />
-                    Education
-                  </h3>
-                </div>
-                <div className="card-content">
-                  <p>{selectedApplication.education}</p>
-                </div>
-              </div>
-
-              <div className="info-card">
-                <div className="card-header">
-                  <h3 className="card-title">
-                    <Building className="icon" />
-                    Experience
-                  </h3>
-                </div>
-                <div className="card-content">
-                  <p>{selectedApplication.experience}</p>
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                <button className="cancel-button" onClick={() => setSelectedApplication(null)}>
-                  Close
-                </button>
-                <button className="download-button">
-                  <Download className="icon" />
-                  Download PDF
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Contact Dialog */}
-      {contactMode && (
-        <div className="modal-overlay">
-          <div className="modal-content contact-modal">
-            <div className="modal-header">
-              <h2 className="modal-title">Contact: {contactMode.candidateName}</h2>
-              <p className="modal-description">Contact information and communication options</p>
-              <button className="close-button" onClick={() => setContactMode(null)}>
-                <X className="icon" />
-              </button>
-            </div>
-            
-            <div className="contact-content">
-              <div className="contact-card">
-                <div className="contact-item">
-                  <Mail className="contact-icon" />
-                  <div>
-                    <p className="contact-label">Email</p>
-                    <p className="contact-value">{contactMode.email}</p>
-                  </div>
-                </div>
-                <div className="contact-item">
-                  <Phone className="contact-icon" />
-                  <div>
-                    <p className="contact-label">Phone</p>
-                    <p className="contact-value">{contactMode.phone}</p>
-                  </div>
-                </div>
-                <div className="contact-item">
-                  <MapPin className="contact-icon" />
-                  <div>
-                    <p className="contact-label">Address</p>
-                    <p className="contact-value">{contactMode.address}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="contact-actions">
-                <button 
-                  className="email-button"
-                  onClick={() => window.open(`mailto:${contactMode.email}`)}
-                >
-                  <Mail className="icon" />
-                  Send Email
-                </button>
-                <button 
-                  className="call-button"
-                  onClick={() => window.open(`tel:${contactMode.phone}`)}
-                >
-                  <Phone className="icon" />
-                  Call
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Review Dialog */}
-      {reviewMode && (
-        <div className="modal-overlay">
-          <div className="modal-content review-modal">
-            <div className="modal-header">
-              <h2 className="modal-title">Review: {reviewMode.candidateName}</h2>
-              <p className="modal-description">Review candidate application and update status</p>
-              <button className="close-button" onClick={() => setReviewMode(null)}>
-                <X className="icon" />
-              </button>
-            </div>
-            
-            <div className="review-content">
-              <div className="review-card">
-                <div className="card-header">
-                  <h3 className="card-title">Application Summary</h3>
-                </div>
-                <div className="card-content">
-                  <div className="status-section">
-                    <p className="status-label">Current Status</p>
-                    <span className={`status-badge ${getStatusColor(reviewMode.status)}`}>
-                      {formatStatus(reviewMode.status)}
-                    </span>
-                  </div>
-                  <div className="cover-letter-section">
-                    <p className="section-label">Cover Letter</p>
-                    <p className="cover-letter-text">{reviewMode.coverLetter}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="review-form">
-                <div className="form-group">
-                  <label htmlFor="status" className="form-label">Update Status</label>
-                  <select
-                    id="status"
-                    value={reviewMode.status}
-                    onChange={(e) => updateApplicationStatus(reviewMode.id, e.target.value )}
-                    className="status-select"
+                <div className="flex gap-2">
+                  <IconButton
+                    icon={Mail}
+                    className="email-button flex-1"
+                    onClick={() => window.open(`mailto:${contactApp.email}`)}
                   >
-                    <option value="pending">Pending</option>
-                    <option value="reviewed">Reviewed</option>
-                    <option value="shortlisted">Shortlisted</option>
-                    <option value="rejected">Rejected</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="notes" className="form-label">Review Notes</label>
-                  <textarea
-                    id="notes"
-                    placeholder="Add your review notes here..."
-                    className="notes-textarea"
-                  />
+                    Email
+                  </IconButton>
+                  <IconButton
+                    icon={Phone}
+                    className="call-button flex-1"
+                    onClick={() => window.open(`tel:${contactApp.phone}`)}
+                  >
+                    Call
+                  </IconButton>
                 </div>
               </div>
+            </Modal>
+          )}
 
-              <div className="modal-footer">
-                <button className="cancel-button" onClick={() => setReviewMode(null)}>
-                  Cancel
-                </button>
-                <button className="save-button">
-                  Save Review
-                </button>
+          {/* ---------------------------- Review Modal --------------------------- */}
+          {reviewApp && (
+            <Modal>
+              <header className="modal-header">
+                <h2 className="modal-title">Review {reviewApp.candidateName}</h2>
+                <IconButton
+                  icon={X}
+                  onClick={() => setReviewApp(null)}
+                  aria-label="Close review"
+                />
+              </header>
+              <div className="space-y-6 px-6 py-6 text-sm">
+                {/* Current status */}
+                <section className="modal-section">
+                  <p className="mb-2 font-medium">Current status</p>
+                  <StatusPill status={reviewApp.status} />
+                </section>
+
+                {/* Cover Letter */}
+                <section className="modal-section">
+                  <p className="mb-2 font-medium">Cover Letter</p>
+                  <p className="whitespace-pre-line">{reviewApp.coverLetter}</p>
+                </section>
+
+                {/* Update form */}
+                <section className="modal-section">
+                  <label className="block space-y-1">
+                    <span className="text-sm font-medium">Update status</span>
+                    <select
+                      className="filter-select w-full"
+                      value={reviewApp.status}
+                      onChange={(e) => updateStatus(reviewApp.id, e.target.value)}
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="reviewed">Reviewed</option>
+                      <option value="shortlisted">Shortlisted</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                  </label>
+
+                  <label className="block space-y-1">
+                    <span className="text-sm font-medium">Notes (optional)</span>
+                    <textarea
+                      className="notes-textarea"
+                      placeholder="Add your notes here…"
+                    />
+                  </label>
+                </section>
+
+                <div className="action-buttons">
+                  <IconButton
+                    icon={Save}
+                    onClick={() => {
+                      alert("Review saved!");
+                      setReviewApp(null);
+                    }}
+                    className="save-button"
+                  >
+                    Save
+                  </IconButton>
+                  <IconButton
+                    icon={X}
+                    onClick={() => setReviewApp(null)}
+                    className="cancel-button"
+                  >
+                    Cancel
+                  </IconButton>
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <style jsx>{`
-        .application-viewer {
-          font-family: 'Inter', sans-serif;
-        }
-
-        /* Modal Styles */
-        .modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background-color: rgba(0, 0, 0, 0.5);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-        }
-
-        .modal-content {
-          background-color: white;
-          border-radius: 8px;
-          width: 90%;
-          max-width: 1200px;
-          max-height: 80vh;
-          overflow-y: auto;
-          padding: 24px;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .contact-modal,
-        .review-modal {
-          max-width: 600px;
-        }
-
-        .modal-header {
-          margin-bottom: 20px;
-          position: relative;
-        }
-
-        .modal-title {
-          font-size: 1.5rem;
-          font-weight: 600;
-          color: #1e3a8a;
-          margin-bottom: 4px;
-        }
-
-        .modal-description {
-          color: #6b7280;
-          font-size: 0.875rem;
-        }
-
-        .close-button {
-          position: absolute;
-          top: 0;
-          right: 0;
-          background: none;
-          border: none;
-          cursor: pointer;
-          color: #6b7280;
-        }
-
-        .icon {
-          width: 16px;
-          height: 16px;
-          margin-right: 8px;
-        }
-
-        /* Application List Styles */
-        .application-list-container {
-          margin-top: 16px;
-        }
-
-        .application-list-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 16px;
-        }
-
-        .application-count {
-          color: #6b7280;
-          font-size: 0.875rem;
-        }
-
-        .export-button {
-          display: flex;
-          align-items: center;
-          background: none;
-          border: 1px solid #d1d5db;
-          border-radius: 4px;
-          padding: 6px 12px;
-          font-size: 0.875rem;
-          cursor: pointer;
-        }
-
-        .divider {
-          height: 1px;
-          background-color: #D6CB00;
-          margin: 16px 0;
-        }
-
-        /* Empty State */
-        .empty-state {
-          text-align: center;
-          padding: 32px;
-        }
-
-        .empty-icon {
-          width: 48px;
-          height: 48px;
-          color: #D6CB00;
-          margin-bottom: 16px;
-        }
-
-        .empty-title {
-          font-size: 1.125rem;
-          font-weight: 600;
-          margin-bottom: 8px;
-        }
-
-        .empty-message {
-          color: #6b7280;
-        }
-
-        /* Application Card */
-        .applications-grid {
-          display: grid;
-          gap: 16px;
-        }
-
-        .application-card {
-          border: 1px solid #e5e7eb;
-          border-radius: 8px;
-          padding: 16px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        .application-header {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 16px;
-        }
-
-        .application-info {
-          flex: 1;
-        }
-
-        .candidate-name {
-          font-size: 1.125rem;
-          font-weight: 600;
-          color: #000000ff;
-          margin-bottom: 8px;
-        }
-
-        .contact-info {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 16px;
-          font-size: 0.875rem;
-          color: #000000ff;
-        }
-
-        .contact-item {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-
-        /* Status Badges */
-        .status-badge {
-          display: inline-block;
-          padding: 1px;
-          border-radius: 9999px;
-          font-size: 0.75rem;
-          font-weight: 500;
-        }
-
-        .status-pending {
-        //   background-color: #fef3c7;
-          color: #92400e;
-        //   height:20px
-        }
-
-        .status-reviewed {
-        //   background-color: #dbeafe;
-          color: #1e40af;
-        }
-
-        .status-shortlisted {
-        //   background-color: #d1fae5;
-          color: #065f46;
-        }
-
-        .status-rejected {
-        //   background-color: #fee2e2;
-          color: #991b1b;
-        }
-
-        .status-default {
-        //   background-color: #f3f4f6;
-          color: #1f2937;
-        }
-
-        /* Application Content */
-        .cover-letter-section {
-          margin-bottom: 16px;
-        }
-
-        .section-title {
-          font-weight: 600;
-          color: #111827;
-          margin-bottom: 8px;
-        }
-
-        .cover-letter-text {
-          color: #6b7280;
-          font-size: 0.875rem;
-          line-height: 1.5;
-        }
-
-        .application-actions {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding-top: 16px;
-          border-top: 1px solid #e5e7eb;
-        }
-
-        .view-resume-button {
-          display: flex;
-          align-items: center;
-          background: none;
-          border: 1px solid #d1d5db;
-          border-radius: 4px;
-          padding: 6px 12px;
-          font-size: 0.875rem;
-          cursor: pointer;
-        }
-
-        .action-buttons {
-          display: flex;
-          gap: 8px;
-        }
-
-        .contact-button,
-        .review-button {
-          display: flex;
-          align-items: center;
-          border: 1px solid #d1d5db;
-          border-radius: 4px;
-          padding: 6px 12px;
-          font-size: 0.875rem;
-          cursor: pointer;
-        }
-
-        .review-button {
-          background-color: rgba(59, 130, 246, 0.1);
-          color: #1d4ed8;
-        }
-
-        /* Resume Viewer Styles */
-        .resume-content {
-          display: grid;
-          gap: 16px;
-        }
-
-        .info-card {
-          border: 1px solid #e5e7eb;
-          border-radius: 8px;
-          padding: 16px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        .card-header {
-          margin-bottom: 12px;
-        }
-
-        .card-title {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 1rem;
-          font-weight: 600;
-          color: #1e3a8a;
-        }
-
-        .card-content {
-          padding-left: 24px;
-        }
-
-        .info-item {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-bottom: 8px;
-        }
-
-        .modal-footer {
-          display: flex;
-          justify-content: flex-end;
-          gap: 8px;
-          margin-top: 16px;
-        }
-
-        .cancel-button {
-          background: none;
-          border: 1px solid #d1d5db;
-          border-radius: 4px;
-          padding: 8px 16px;
-          cursor: pointer;
-        }
-
-        .download-button,
-        .save-button {
-          background: linear-gradient(135deg, #3b82f6, #2563eb);
-          color: white;
-          border: none;
-          border-radius: 4px;
-          padding: 8px 16px;
-          cursor: pointer;
-        }
-
-        /* Contact Modal Styles */
-        .contact-content {
-          display: grid;
-          gap: 16px;
-        }
-
-        .contact-card {
-          border: 1px solid #e5e7eb;
-          border-radius: 8px;
-          padding: 16px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        .contact-item {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          margin-bottom: 16px;
-        }
-
-        .contact-icon {
-          color: #3b82f6;
-          width: 20px;
-          height: 20px;
-        }
-
-        .contact-label {
-          font-weight: 500;
-          margin-bottom: 4px;
-        }
-
-        .contact-value {
-          color: #6b7280;
-          font-size: 0.875rem;
-        }
-
-        .contact-actions {
-          display: flex;
-          gap: 8px;
-        }
-
-        .email-button,
-        .call-button {
-          flex: 1;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 4px;
-          padding: 8px;
-          cursor: pointer;
-        }
-
-        .email-button {
-          background: linear-gradient(135deg, #3b82f6, #2563eb);
-          color: white;
-          border: none;
-        }
-
-        .call-button {
-          border: 1px solid #D6CB00;
-          background: white;
-        }
-
-        /* Review Modal Styles */
-        .review-content {
-          display: grid;
-          gap: 16px;
-        }
-
-        .review-card {
-          border: 1px solid #e5e7eb;
-          border-radius: 8px;
-          padding: 16px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-        }
-
-        .status-section {
-          margin-bottom: 16px;
-        }
-
-        .status-label {
-          font-weight: 500;
-          margin-bottom: 4px;
-        }
-
-        .section-label {
-          font-weight: 500;
-          margin-bottom: 4px;
-        }
-
-        .review-form {
-          display: grid;
-          gap: 16px;
-        }
-
-        .form-group {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-
-        .form-label {
-          font-size: 0.875rem;
-          font-weight: 500;
-        }
-
-        .status-select {
-          padding: 0px;
-          border: 1px solid #d1d5db;
-          border-radius: 4px;
-        }
-
-        .notes-textarea {
-          min-height: 100px;
-          padding: 8px;
-          border: 1px solid #d1d5db;
-          border-radius: 4px;
-          resize: vertical;
-        }
-
-        @media (max-width: 768px) {
-          .modal-content {
-            width: 95%;
-            padding: 16px;
-          }
-
-          .contact-info {
-            flex-direction: column;
-            gap: 8px;
-          }
-
-          .application-header {
-            flex-direction: column;
-            gap: 8px;
-          }
-
-          .application-actions {
-            flex-direction: column;
-            gap: 8px;
-          }
-
-          .action-buttons {
-            width: 100%;
-          }
-
-          .contact-button,
-          .review-button,
-          .view-resume-button {
-            width: 100%;
-            justify-content: center;
-          }
-        }
-      `}</style>
-    </div>
+            </Modal>
+          )}
+        </Modal>
+      </>
+    )
   );
 };
 
