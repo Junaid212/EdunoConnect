@@ -235,7 +235,7 @@ function Home3Page() {
                                             {/* <a href="https://themeforest.net/user/thewebmax/portfolio" className="twm-job-websites site-text-primary">https://thewebmax.com</a> */}
                                         </div>
                                         <div className="twm-right-content">
-                                            <div className="twm-jobs-amount">Apply Before: <span> August 20, 2025h</span></div>
+                                            <div className="twm-jobs-amount">Apply Before: <span> August 20, 2025</span></div>
                                             <NavLink to={publicUser.jobs.DETAIL1} className="twm-jobs-browse site-text-primary">Apply Now</NavLink>
                                         </div>
                                     </div>
